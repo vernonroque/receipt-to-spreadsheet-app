@@ -22,14 +22,24 @@ const API = (() => {
    * }
    */
   function normalizeResponse(data) {
+
+    console.log('Normalizing API response:');
+    console.log('Date:', data.data.date || data.data.receipt_date);
+    console.log('Vendor:', data.data.merchant?.name || data.data.merchant_name || data.data.vendor || data.data.store_name);
+    console.log('Category:', data.data.category || data.data.expense_type);
+    console.log('Subtotal:', data.data.subtotal || data.data.sub_total);
+    console.log('Tax:', data.data.tax || data.data.tax_amount);
+    console.log('Total:', data.data.total || data.data.total_amount);
+    console.log('Currency:', data.data.currency || data.data.currency_code);
+    
     return {
-      date:     data.date          || data.receipt_date   || '',
-      vendor:   data.merchant_name || data.vendor         || data.store_name || '',
-      category: data.category      || data.expense_type   || 'Uncategorized',
-      subtotal: formatAmount(data.subtotal  || data.sub_total || 0),
-      tax:      formatAmount(data.tax       || data.tax_amount || 0),
-      total:    formatAmount(data.total     || data.total_amount || 0),
-      currency: data.currency      || data.currency_code  || 'USD',
+      date:     data.data.date          || data.data.receipt_date   || '',
+      vendor:   data.data.merchant?.name || data.data.merchant_name || data.data.vendor || data.data.store_name || '',
+      category: data.data.category      || data.data.expense_type   || 'Uncategorized',
+      subtotal: formatAmount(data.data.subtotal  || data.data.sub_total || 0),
+      tax:      formatAmount(data.data.tax       || data.data.tax_amount || 0),
+      total:    formatAmount(data.data.total     || data.data.total_amount || 0),
+      currency: data.data.currency      || data.data.currency_code  || 'USD',
     };
   }
 
