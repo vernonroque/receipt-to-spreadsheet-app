@@ -7,24 +7,6 @@
 const API = (() => {
 
   /**
-   * Converts a File object to a base64 data string.
-   * @param {File} file
-   * @returns {Promise<string>} base64 encoded string (without the data URI prefix)
-   */
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => {
-        // Strip the "data:<mime>;base64," prefix
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  /**
    * Normalizes the raw API response into a consistent row schema.
    * Adjust field mappings here to match your API's actual response shape.
    *
@@ -69,22 +51,16 @@ const API = (() => {
       throw new Error('API key or endpoint not configured. Open ⚙ Settings to add them.');
     }
 
-    const base64 = await fileToBase64(file);
-
-    const payload = {
-      image:    base64,
-      filename: file.name,
-      // Include mime type in case your API needs it
-      mime_type: file.type || 'image/jpeg',
-    };
+    const formData = new FormData();
+    formData.append('file', file, file.name);
 
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
+        'accept':        'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: formData,
     });
 
     if (!response.ok) {
@@ -97,6 +73,7 @@ const API = (() => {
     }
 
     const data = await response.json();
+    console.log('Raw API response:', data);
     return normalizeResponse(data);
   }
 
