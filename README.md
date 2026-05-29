@@ -72,15 +72,11 @@ Add your own fallbacks in `normalizeResponse()` if your API uses different field
 
 ## Request Format
 
-The app sends a POST request with this JSON body:
+The app sends a `multipart/form-data` POST request with a single field:
 
-```json
-{
-  "image":     "<base64 encoded file>",
-  "filename":  "receipt.jpg",
-  "mime_type": "image/jpeg"
-}
-```
+| Field  | Value                                              |
+|--------|----------------------------------------------------|
+| `file` | The receipt file (images are compressed to JPEG first; PDFs are sent as-is) |
 
 Authorization header: `Bearer <your-api-key>`
 

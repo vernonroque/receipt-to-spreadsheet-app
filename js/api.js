@@ -48,6 +48,23 @@ const API = (() => {
     return isNaN(num) ? '0.00' : num.toFixed(2);
   }
 
+  function compressImage(file, maxPx = 1600, quality = 0.8) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      };
+      img.src = url;
+    });
+  }
+
   /**
    * Sends a receipt file to the API and returns normalized data.
    * @param {File} file
@@ -61,8 +78,14 @@ const API = (() => {
       throw new Error('API key or endpoint not configured. Open ⚙ Settings to add them.');
     }
 
+    const isImage = file.type.startsWith('image/');
+    const payload = isImage ? await compressImage(file) : file;
+
     const formData = new FormData();
-    formData.append('file', file, file.name);
+    formData.append('file', payload, file.name);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
 
     const response = await fetch(apiEndpoint, {
       method: 'POST',
@@ -71,7 +94,9 @@ const API = (() => {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: formData,
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (!response.ok) {
       let message = `API error ${response.status}`;
