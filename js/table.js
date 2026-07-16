@@ -96,7 +96,7 @@ const Table = (() => {
     tr.appendChild(makeReadOnlyCell(String(rows.indexOf(row) + 1), 'col-num'));
     tr.appendChild(makeEditableCell(row, 'date',     'col-date'));
     tr.appendChild(makeEditableCell(row, 'vendor',   'col-vendor'));
-    // tr.appendChild(makeEditableCell(row, 'category', 'col-category'));
+    tr.appendChild(makeEditableCell(row, 'category', 'col-category'));
     tr.appendChild(makeEditableCell(row, 'subtotal', 'col-subtotal'));
     tr.appendChild(makeEditableCell(row, 'tax',      'col-tax'));
     tr.appendChild(makeEditableCell(row, 'total',    'col-total'));
