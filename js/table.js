@@ -1,7 +1,7 @@
 /**
  * table.js
  * Manages the in-memory row data and all spreadsheet DOM rendering.
- * Depends on: storage.js
+ * Depends on: storage.js, currency.js
  */
 
 const Table = (() => {
@@ -115,6 +115,40 @@ const Table = (() => {
     });
   }
 
+  /** Clears and re-renders every row in the tbody from the current `rows` array. */
+  function renderAll() {
+    tbody().innerHTML = '';
+    rows.forEach(row => renderRow(row));
+  }
+
+  /**
+   * Converts a single row's subtotal/tax/total to `targetCode` using `rates`.
+   * Captures the row's pre-conversion values the first time it's converted,
+   * so repeated conversions always compute from the original amount rather
+   * than compounding rounding error on top of an already-converted value.
+   * Returns false if the conversion couldn't be performed (unsupported currency).
+   */
+  function convertRow(row, targetCode, rates) {
+    if (!row.originalCurrency) {
+      row.originalCurrency = row.currency;
+      row.originalSubtotal = row.subtotal;
+      row.originalTax      = row.tax;
+      row.originalTotal    = row.total;
+    }
+
+    const newSubtotal = Currency.convert(parseNum(row.originalSubtotal), row.originalCurrency, targetCode, rates);
+    const newTax      = Currency.convert(parseNum(row.originalTax),      row.originalCurrency, targetCode, rates);
+    const newTotal    = Currency.convert(parseNum(row.originalTotal),    row.originalCurrency, targetCode, rates);
+
+    if (newSubtotal === null || newTax === null || newTotal === null) return false;
+
+    row.subtotal = newSubtotal.toFixed(2);
+    row.tax      = newTax.toFixed(2);
+    row.total    = newTotal.toFixed(2);
+    row.currency = targetCode;
+    return true;
+  }
+
   // ── Public API ─────────────────────────────────────────────
 
   /** Loads persisted rows on startup. */
@@ -172,13 +206,44 @@ const Table = (() => {
     return rows.length > 0;
   }
 
+  /**
+   * Converts every row to `targetCode` using the given rate table.
+   * Rows whose original currency isn't present in `rates` are left
+   * unconverted; their ids are returned so the caller can warn about them.
+   */
+  function convertAllRows(targetCode, rates) {
+    const skipped = [];
+    rows.forEach(row => {
+      if (!convertRow(row, targetCode, rates)) skipped.push(row.id);
+    });
+    renderAll();
+    recalcTotals();
+    persist();
+    return skipped;
+  }
+
+  /**
+   * Converts a single, just-added row to `targetCode` and re-renders/persists.
+   * Used to auto-convert newly scanned receipts to the current display currency.
+   */
+  function convertNewRow(row, targetCode, rates) {
+    const ok = convertRow(row, targetCode, rates);
+    if (ok) {
+      renderAll();
+      recalcTotals();
+      persist();
+    }
+    return ok;
+  }
+
   /** Updates running totals in the footer and header. */
   function recalcTotals() {
     const sub   = rows.reduce((s, r) => s + parseNum(r.subtotal), 0);
     const tax   = rows.reduce((s, r) => s + parseNum(r.tax),      0);
     const total = rows.reduce((s, r) => s + parseNum(r.total),    0);
 
-    const fmt = n => `$${n.toFixed(2)}`;
+    const symbol = Currency.getSymbol(Storage.getDisplayCurrency() || 'USD');
+    const fmt = n => `${symbol}${n.toFixed(2)}`;
 
     footerSub().textContent   = rows.length ? fmt(sub)   : '—';
     footerTax().textContent   = rows.length ? fmt(tax)   : '—';
@@ -210,5 +275,7 @@ const Table = (() => {
     clearAll,
     getRows,
     hasRows,
+    convertAllRows,
+    convertNewRow,
   };
 })();

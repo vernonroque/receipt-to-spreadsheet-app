@@ -1,8 +1,8 @@
 /**
  * ui.js
- * Manages UI chrome: settings modal, drop zone visual states,
- * processing queue rendering, and toast notifications.
- * Depends on: storage.js
+ * Manages UI chrome: settings modal, currency converter modal,
+ * drop zone visual states, processing queue rendering, and toast notifications.
+ * Depends on: storage.js, currency.js, table.js
  */
 
 const UI = (() => {
@@ -52,6 +52,54 @@ const UI = (() => {
     Storage.setApiEndpoint(url);
     closeSettings();
     showToast('Settings saved ✓', 'success');
+  }
+
+  // ── Currency Converter Modal ──────────────────────────────
+
+  function openCurrencyModal() {
+    const modal   = document.getElementById('modal-currency');
+    const grid    = document.getElementById('currency-grid');
+    const current = Storage.getDisplayCurrency() || 'USD';
+
+    grid.innerHTML = '';
+    Currency.CURRENCIES.forEach(({ code, name, symbol }) => {
+      const btn = document.createElement('button');
+      btn.className = 'currency-option' + (code === current ? ' is-selected' : '');
+      btn.innerHTML = `
+        <span class="currency-option-name">${name}</span>
+        <span class="currency-option-code">${code} – ${symbol}</span>
+      `;
+      btn.addEventListener('click', () => selectCurrency(code));
+      grid.appendChild(btn);
+    });
+
+    modal.hidden = false;
+  }
+
+  function closeCurrencyModal() {
+    document.getElementById('modal-currency').hidden = true;
+  }
+
+  async function selectCurrency(code) {
+    const grid = document.getElementById('currency-grid');
+    grid.querySelectorAll('.currency-option').forEach(btn => btn.disabled = true);
+
+    try {
+      const { rates } = await Currency.fetchRates();
+      Storage.setDisplayCurrency(code);
+      const skipped = Table.convertAllRows(code, rates);
+      closeCurrencyModal();
+
+      if (skipped.length > 0) {
+        showToast(`Converted to ${code}, but ${skipped.length} row(s) use an unsupported currency.`, 'error');
+      } else {
+        showToast(`Converted to ${code} ✓`, 'success');
+      }
+    } catch (err) {
+      console.error('Currency conversion error:', err);
+      showToast('Could not fetch exchange rates. Try again later.', 'error');
+      grid.querySelectorAll('.currency-option').forEach(btn => btn.disabled = false);
+    }
   }
 
   // ── Drop Zone visual state ────────────────────────────────
@@ -170,6 +218,15 @@ const UI = (() => {
       if (e.target === e.currentTarget) closeSettings();
     });
 
+    // Currency converter modal
+    document.getElementById('btn-currency-converter').addEventListener('click', () => {
+      openCurrencyModal();
+    });
+    document.getElementById('btn-close-currency-modal').addEventListener('click', closeCurrencyModal);
+    document.getElementById('modal-currency').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeCurrencyModal();
+    });
+
     // Enter key in modal inputs saves
     ['input-api-key', 'input-api-endpoint'].forEach(id => {
       document.getElementById(id).addEventListener('keydown', (e) => {
@@ -188,6 +245,8 @@ const UI = (() => {
     showToast,
     openSettings,
     closeSettings,
+    openCurrencyModal,
+    closeCurrencyModal,
     setDropZoneDragging,
     addQueueItem,
     updateQueueItem,

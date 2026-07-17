@@ -3,7 +3,7 @@
  * Main entry point. Wires together all modules and orchestrates
  * user interactions: file drop, file select, export, and clear.
  *
- * Depends on: storage.js, api.js, table.js, export.js, ui.js
+ * Depends on: storage.js, currency.js, api.js, table.js, export.js, ui.js
  */
 
 (function App() {
@@ -36,13 +36,30 @@
 
       try {
         const receiptData = await API.parseReceipt(file);
-        Table.addRow(receiptData);
+        const row = Table.addRow(receiptData);
+        await autoConvertRow(row);
         UI.updateQueueItem(queueKey, true, `${receiptData.vendor || 'Receipt'} parsed ✓`);
       } catch (err) {
         console.error('Receipt parse error:', err);
         UI.updateQueueItem(queueKey, false, err.message || 'Failed to parse');
         UI.showToast(`Error: ${err.message}`, 'error');
       }
+    }
+  }
+
+  /**
+   * If the user has previously selected a display currency, converts a
+   * freshly-added row to match it so the table always shows one currency.
+   */
+  async function autoConvertRow(row) {
+    const target = Storage.getDisplayCurrency();
+    if (!target || row.currency === target) return;
+
+    try {
+      const { rates } = await Currency.fetchRates();
+      Table.convertNewRow(row, target, rates);
+    } catch (err) {
+      console.error('Auto-conversion error:', err);
     }
   }
 
