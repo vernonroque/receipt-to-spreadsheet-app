@@ -11,7 +11,10 @@ const Storage = (() => {
     ROWS:             'rp_rows',
     RATES_CACHE:      'rp_rates_cache',
     DISPLAY_CURRENCY: 'rp_display_currency',
+    MAX_BATCH_FILES:  'rp_max_batch_files',
   };
+
+  const DEFAULT_MAX_BATCH_FILES = 25; // matches backend "starter" tier
 
   function getApiKey() {
     return localStorage.getItem(KEYS.API_KEY) || '';
@@ -31,6 +34,18 @@ const Storage = (() => {
 
   function hasCredentials() {
     return getApiKey().length > 0 && getApiEndpoint().length > 0;
+  }
+
+  function getMaxBatchFiles() {
+    const n = parseInt(localStorage.getItem(KEYS.MAX_BATCH_FILES), 10);
+    return (Number.isFinite(n) && n > 0) ? n : DEFAULT_MAX_BATCH_FILES;
+  }
+
+  function setMaxBatchFiles(value) {
+    const n = parseInt(value, 10);
+    if (Number.isFinite(n) && n > 0) {
+      localStorage.setItem(KEYS.MAX_BATCH_FILES, String(n));
+    }
   }
 
   function saveRows(rows) {
@@ -85,6 +100,8 @@ const Storage = (() => {
     getApiEndpoint,
     setApiEndpoint,
     hasCredentials,
+    getMaxBatchFiles,
+    setMaxBatchFiles,
     saveRows,
     loadRows,
     clearRows,

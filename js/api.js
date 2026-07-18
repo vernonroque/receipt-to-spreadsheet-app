@@ -21,26 +21,50 @@ const API = (() => {
    *   currency:      "USD"
    * }
    */
-  function normalizeResponse(data) {
-
-    console.log('Normalizing API response:');
-    console.log('Date:', data.data.date || data.data.receipt_date);
-    console.log('Vendor:', data.data.merchant?.name || data.data.merchant_name || data.data.vendor || data.data.store_name);
-    console.log('Category:', data.data.category || data.data.expense_type);
-    console.log('Subtotal:', data.data.subtotal || data.data.sub_total);
-    console.log('Tax:', data.data.tax || data.data.tax_amount);
-    console.log('Total:', data.data.total || data.data.total_amount);
-    console.log('Currency:', data.data.currency || data.data.currency_code);
-    
+  function mapReceiptFields(d) {
     return {
-      date:     data.data.date          || data.data.receipt_date   || '',
-      vendor:   data.data.merchant?.name || data.data.merchant_name || data.data.vendor || data.data.store_name || '',
-      category: data.data.category      || data.data.expense_type   || 'Uncategorized',
-      subtotal: formatAmount(data.data.subtotal  || data.data.sub_total || 0),
-      tax:      formatAmount(data.data.tax       || data.data.tax_amount || 0),
-      total:    formatAmount(data.data.total     || data.data.total_amount || 0),
-      currency: data.data.currency      || data.data.currency_code  || 'USD',
+      date:     d.date          || d.receipt_date   || '',
+      vendor:   d.merchant?.name || d.merchant_name || d.vendor || d.store_name || '',
+      category: d.category      || d.expense_type   || 'Uncategorized',
+      subtotal: formatAmount(d.subtotal  || d.sub_total    || 0),
+      tax:      formatAmount(d.tax       || d.tax_amount   || 0),
+      total:    formatAmount(d.total     || d.total_amount || 0),
+      currency: d.currency      || d.currency_code  || 'USD',
     };
+  }
+
+  function normalizeResponse(data) {
+    return mapReceiptFields(data.data);
+  }
+
+  /**
+   * Maps a single result from the bulk endpoint's `results[]` array to one
+   * of three outcomes: a normal success, a detected duplicate (no data), or
+   * a per-file failure (batch as a whole can still be 200 OK).
+   */
+  function normalizeBulkResult(result) {
+    if (result.success && result.is_duplicate) {
+      return { outcome: 'duplicate', duplicateOf: result.duplicate_of };
+    }
+    if (result.success && result.data) {
+      return { outcome: 'success', row: mapReceiptFields(result.data) };
+    }
+    return { outcome: 'error', message: result.error || 'No data returned for this file' };
+  }
+
+  /**
+   * Best-effort extraction of the real per-plan file limit from a 422
+   * "too many files" error message. Not a stable contract — if the backend's
+   * wording changes this just returns null and the caller falls back to a
+   * blind split-and-retry.
+   */
+  function parseMaxFilesFromError(message) {
+    const match = /up to (\d+) files/i.exec(message || '');
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  function deriveBulkEndpoint(endpoint) {
+    return endpoint.replace(/\/+$/, '') + '/bulk';
   }
 
   function formatAmount(value) {
@@ -112,5 +136,58 @@ const API = (() => {
     return normalizeResponse(data);
   }
 
-  return { parseReceipt };
+  /**
+   * Sends multiple receipt files to the bulk API endpoint in a single request.
+   * @param {File[]} files
+   * @returns {Promise<Object>} raw bulk response { success, results: [...], ... }
+   */
+  async function parseReceiptsBulk(files) {
+    const apiKey      = Storage.getApiKey();
+    const apiEndpoint = Storage.getApiEndpoint();
+
+    if (!apiKey || !apiEndpoint) {
+      throw new Error('API key or endpoint not configured. Open ⚙ Settings to add them.');
+    }
+
+    const formData = new FormData();
+    for (const file of files) {
+      const isImage = file.type.startsWith('image/');
+      const payload = isImage ? await compressImage(file) : file;
+      formData.append('files', payload, file.name);
+    }
+
+    const timeoutMs = Math.min(600_000, 30_000 + files.length * 10_000);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response;
+    try {
+      response = await fetch(deriveBulkEndpoint(apiEndpoint), {
+        method: 'POST',
+        headers: {
+          'accept':        'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      let message = `API error ${response.status}`;
+      try {
+        const errData = await response.json();
+        message = errData.detail || errData.message || errData.error || message;
+      } catch (_) { /* ignore parse errors */ }
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  }
+
+  return { parseReceipt, parseReceiptsBulk, normalizeBulkResult, parseMaxFilesFromError };
 })();

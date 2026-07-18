@@ -30,6 +30,7 @@ const UI = (() => {
 
     keyInput.value = Storage.getApiKey();
     urlInput.value = Storage.getApiEndpoint();
+    document.getElementById('input-max-batch').value = Storage.getMaxBatchFiles();
 
     modal.hidden = false;
     keyInput.focus();
@@ -42,6 +43,7 @@ const UI = (() => {
   function saveSettings() {
     const key = document.getElementById('input-api-key').value.trim();
     const url = document.getElementById('input-api-endpoint').value.trim();
+    const maxBatch = document.getElementById('input-max-batch').value.trim();
 
     if (!key || !url) {
       showToast('Please fill in both API Key and Endpoint URL.', 'error');
@@ -50,6 +52,7 @@ const UI = (() => {
 
     Storage.setApiKey(key);
     Storage.setApiEndpoint(url);
+    if (maxBatch) Storage.setMaxBatchFiles(maxBatch);
     closeSettings();
     showToast('Settings saved ✓', 'success');
   }
@@ -111,7 +114,8 @@ const UI = (() => {
 
   // ── Processing Queue ──────────────────────────────────────
 
-  const queueItems = new Map(); // filename → element
+  const queueItems = new Map(); // key → element
+  let itemCounter = 0; // disambiguates same-name/same-size files (e.g. from different subfolders)
 
   function addQueueItem(file) {
     const queue = document.getElementById('queue');
@@ -161,30 +165,41 @@ const UI = (() => {
     item.appendChild(indicator);
     queue.appendChild(item);
 
-    const key = file.name + file.size;
+    const key = `${file.name}_${file.size}_${itemCounter++}`;
     queueItems.set(key, { item, status, indicator });
 
     return key;
   }
 
-  function updateQueueItem(key, success, message) {
+  /**
+   * @param {string} key
+   * @param {'success'|'error'|'duplicate'} status
+   * @param {string} [message]
+   */
+  function updateQueueItem(key, status, message) {
     const entry = queueItems.get(key);
     if (!entry) return;
 
-    const { item, status, indicator } = entry;
+    const { item, status: statusEl, indicator } = entry;
 
-    if (success) {
+    if (status === 'success') {
       item.classList.replace('status-processing', 'status-done');
-      status.textContent    = message || 'Done ✓';
-      indicator.innerHTML   = '<span style="color:var(--accent);font-size:16px">✓</span>';
+      statusEl.textContent = message || 'Done ✓';
+      indicator.innerHTML  = '<span style="color:var(--accent);font-size:16px">✓</span>';
+    } else if (status === 'duplicate') {
+      item.classList.replace('status-processing', 'status-duplicate');
+      statusEl.textContent = message || 'Duplicate';
+      indicator.innerHTML  = '<span style="color:var(--accent-dim);font-size:16px">⧉</span>';
     } else {
       item.classList.replace('status-processing', 'status-error');
-      status.textContent    = message || 'Failed';
-      indicator.innerHTML   = '<span style="color:var(--danger);font-size:16px">✕</span>';
+      statusEl.textContent = message || 'Failed';
+      indicator.innerHTML  = '<span style="color:var(--danger);font-size:16px">✕</span>';
     }
 
-    // Auto-remove successful items after a delay
-    if (success) {
+    // Only auto-remove clean successes — errors and duplicates stay visible,
+    // since a duplicate means "this row was NOT added," which is worth
+    // leaving on screen rather than letting it silently fade like a success.
+    if (status === 'success') {
       setTimeout(() => {
         item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         item.style.opacity    = '0';
@@ -203,6 +218,23 @@ const UI = (() => {
     if (queue.children.length === 0) {
       queue.hidden = true;
     }
+  }
+
+  function setQueueSummary(text) {
+    let summary = document.getElementById('queue-summary');
+    if (!summary) {
+      summary = document.createElement('div');
+      summary.id = 'queue-summary';
+      summary.className = 'queue-summary';
+      document.getElementById('queue').before(summary);
+    }
+    summary.hidden = false;
+    summary.textContent = text;
+  }
+
+  function clearQueueSummary() {
+    const summary = document.getElementById('queue-summary');
+    if (summary) summary.hidden = true;
   }
 
   // ── Init (wire up static event listeners) ─────────────────
@@ -228,7 +260,7 @@ const UI = (() => {
     });
 
     // Enter key in modal inputs saves
-    ['input-api-key', 'input-api-endpoint'].forEach(id => {
+    ['input-api-key', 'input-api-endpoint', 'input-max-batch'].forEach(id => {
       document.getElementById(id).addEventListener('keydown', (e) => {
         if (e.key === 'Enter') saveSettings();
       });
@@ -250,5 +282,7 @@ const UI = (() => {
     setDropZoneDragging,
     addQueueItem,
     updateQueueItem,
+    setQueueSummary,
+    clearQueueSummary,
   };
 })();
