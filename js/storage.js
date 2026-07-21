@@ -12,6 +12,7 @@ const Storage = (() => {
     RATES_CACHE:      'rp_rates_cache',
     DISPLAY_CURRENCY: 'rp_display_currency',
     MAX_BATCH_FILES:  'rp_max_batch_files',
+    THEME:            'rp_theme',
   };
 
   const DEFAULT_MAX_BATCH_FILES = 25; // matches backend "starter" tier
@@ -94,6 +95,14 @@ const Storage = (() => {
     localStorage.setItem(KEYS.DISPLAY_CURRENCY, code);
   }
 
+  function getTheme() {
+    return localStorage.getItem(KEYS.THEME) || 'light';
+  }
+
+  function setTheme(theme) {
+    localStorage.setItem(KEYS.THEME, theme);
+  }
+
   return {
     getApiKey,
     setApiKey,
@@ -109,5 +118,7 @@ const Storage = (() => {
     setRatesCache,
     getDisplayCurrency,
     setDisplayCurrency,
+    getTheme,
+    setTheme,
   };
 })();

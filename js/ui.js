@@ -105,6 +105,19 @@ const UI = (() => {
     }
   }
 
+  // ── Theme toggle ──────────────────────────────────────────
+
+  function applyThemeIcon(theme) {
+    document.getElementById('theme-toggle-icon').textContent = theme === 'dark' ? '☾' : '☀';
+  }
+
+  function toggleTheme() {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    Storage.setTheme(next);
+    applyThemeIcon(next);
+  }
+
   // ── Drop Zone visual state ────────────────────────────────
 
   function setDropZoneDragging(active) {
@@ -240,6 +253,10 @@ const UI = (() => {
   // ── Init (wire up static event listeners) ─────────────────
 
   function init() {
+    // Theme toggle
+    applyThemeIcon(document.documentElement.dataset.theme);
+    document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+
     // Settings modal
     document.getElementById('btn-settings').addEventListener('click', () => {
       openSettings();
