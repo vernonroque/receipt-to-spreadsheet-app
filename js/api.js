@@ -26,9 +26,13 @@ const API = (() => {
       date:     d.date          || d.receipt_date   || '',
       vendor:   d.merchant?.name || d.merchant_name || d.vendor || d.store_name || '',
       category: d.category      || d.expense_type   || 'Uncategorized',
+      original_subtotal: formatAmount(d.subtotal || 0),
       subtotal: formatAmount(d.subtotal  || d.sub_total    || 0),
+      original_tax: formatAmount(d.tax || 0),
       tax:      formatAmount(d.tax       || d.tax_amount   || 0),
+      original_total: formatAmount(d.total || 0),
       total:    formatAmount(d.total     || d.total_amount || 0),
+      original_currency: d.currency || 'NA',
       currency: d.currency      || d.currency_code  || 'USD',
     };
   }

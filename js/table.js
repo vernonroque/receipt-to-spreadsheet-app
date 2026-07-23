@@ -97,10 +97,14 @@ const Table = (() => {
     tr.appendChild(makeEditableCell(row, 'date',     'col-date'));
     tr.appendChild(makeEditableCell(row, 'vendor',   'col-vendor'));
     tr.appendChild(makeEditableCell(row, 'category', 'col-category'));
-    tr.appendChild(makeEditableCell(row, 'subtotal', 'col-subtotal'));
-    tr.appendChild(makeEditableCell(row, 'tax',      'col-tax'));
-    tr.appendChild(makeEditableCell(row, 'total',    'col-total'));
-    tr.appendChild(makeEditableCell(row, 'currency', 'col-currency'));
+    tr.appendChild(makeEditableCell(row, 'original_subtotal', 'col-original-subtotal'));
+    tr.appendChild(makeEditableCell(row, 'subtotal', 'col-converted-subtotal'));
+    tr.appendChild(makeEditableCell(row, 'original_tax','col-original-tax'));
+    tr.appendChild(makeEditableCell(row, 'tax', 'col-converted-tax'));
+    tr.appendChild(makeEditableCell(row, 'original_total',    'col-original-total'));
+    tr.appendChild(makeEditableCell(row, 'total',    'col-converted-total'));
+    tr.appendChild(makeEditableCell(row, 'original_currency', 'col-original-currency'));
+    tr.appendChild(makeEditableCell(row, 'currency', 'col-converted-currency'));
     tr.appendChild(makeDeleteCell(row));
 
     tbody().appendChild(tr);

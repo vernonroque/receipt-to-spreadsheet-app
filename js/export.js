@@ -6,8 +6,8 @@
 
 const Export = (() => {
 
-  const COLUMNS = ['date', 'vendor', 'category', 'subtotal', 'tax', 'total', 'currency'];
-  const HEADERS  = ['Date', 'Vendor', 'Category', 'Subtotal', 'Tax', 'Total', 'Currency'];
+  const COLUMNS = ['date', 'vendor', 'category','original_subtotal', 'subtotal', 'original_tax', 'tax', 'original_total', 'total', 'original_currency', 'currency'];
+  const HEADERS  = ['Date', 'Vendor', 'Category', 'Original Subtotal','Converted Subtotal', 'Original Tax', 'Converted Tax', 'Original Total', 'Converted Total', 'Original Currency', 'Converted Currency'];
 
   /** Escapes a cell value for CSV (wraps in quotes if it contains commas, quotes, or newlines). */
   function escapeCSV(value) {
